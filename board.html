@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>우주 실험실 · 칠판</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="style.css">
+<style>
+  .ctrl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .ctrl select { width: auto; }
+  .grid2 { display: grid; grid-template-columns: 1fr 320px; gap: 14px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+  .grp { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+  .grp .nm { flex: 1; font-weight: 700; }
+  .grp .v { color: var(--acc2); font-weight: 800; }
+  .stat { font-size: 2.2rem; font-weight: 900; color: var(--acc2); line-height: 1.1; }
+  .waiting { color: var(--dim); }
+  #uni { width: 100%; height: 340px; display: block; border-radius: 14px; background: radial-gradient(circle at 50% 50%, rgba(124,196,255,.12), transparent 70%); cursor: pointer; }
+  .pin { max-width: 420px; margin: 40px auto; text-align: center; }
+  .pin input { text-align: center; font-size: 1.6rem; letter-spacing: 8px; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><span class="ico">🛰️</span><div><b>우주 실험실 · 칠판 화면</b><small>모둠 측정값이 실시간으로 모여요</small></div></div>
+  <span class="chip" id="live">● 연결 전</span>
+</header>
+
+<div class="wrap">
+  <section class="card pin" id="v-pin">
+    <h2>교사 PIN</h2>
+    <p class="lead">한눈 체크와 같은 PIN이에요.</p>
+    <input id="pinIn" inputmode="numeric" maxlength="8" autocomplete="off">
+    <button class="btn wide" onclick="login()">들어가기</button>
+  </section>
+
+  <div id="v-main" class="hidden">
+    <section class="card" style="margin-top:0">
+      <div class="ctrl">
+        <select id="selG"><option value="3">3학년</option><option value="2">2학년</option><option value="1">1학년</option></select>
+        <select id="selC"></select>
+        <span style="flex:1"></span>
+        <button class="btn sm" onclick="start('parallax')">📏 시차 측정 시작</button>
+        <button class="btn gold sm" onclick="start('balloon')">🎈 풍선 우주 시작</button>
+        <button class="btn red sm" id="bClose" onclick="setOpen(false)">⏹ 입력 마감</button>
+        <button class="btn ghost sm" id="bOpen" onclick="setOpen(true)">▶ 다시 받기</button>
+        <button class="btn ghost sm" onclick="csv()">⬇ CSV</button>
+      </div>
+      <p class="lead" style="margin:10px 0 0">학생 주소: <b id="stuUrl"></b></p>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <span class="tag" id="eStd">실험 대기 중</span>
+        <h2 id="eName" style="margin-top:6px">위에서 실험을 시작하세요</h2>
+        <div class="ctrl" style="margin:6px 0">
+          <button class="btn ghost sm hidden" id="bInv" onclick="toggleInv()">🔁 가로축을 1/거리로</button>
+          <button class="btn gold sm" id="bAna" onclick="toggleAna()">💡 규칙 공개</button>
+        </div>
+        <div id="chart"></div>
+        <p class="lead" id="ana"></p>
+      </section>
+      <section class="card">
+        <h3>모둠 <span class="waiting" id="cnt"></span></h3>
+        <div id="groups"></div>
+        <div id="res" class="hidden" style="margin-top:12px">
+          <div class="lead" id="resLabel"></div>
+          <div class="stat" id="resVal"></div>
+          <div class="lead" id="resSub"></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card hidden" id="uniCard">
+      <h3>🌌 기준 은하 바꾸기 — 어느 은하에서 보아도 똑같을까?</h3>
+      <p class="lead">은하를 누르면 그 은하가 기준이 돼요. 화살표 길이 = 같은 시간 동안 멀어진 거리.</p>
+      <canvas id="uni"></canvas>
+      <div class="ctrl" style="margin-top:8px"><button class="btn sm" onclick="uniPlay()">▶ 팽창 재생</button><span class="lead" id="uniMsg"></span></div>
+    </section>
+  </div>
+</div>
+<div class="toast hidden" id="toast"></div>
+
+<script src="common.js"></script>
+<script>
+  var PIN = store('labPin') || '', data = null, timer = null, inv = false, ana = false;
+  for (var c = 1; c <= 9; c++) $('selC').add(new Option(c + '반', c));
+  var last = store('labBoardCls'); if (last) { $('selG').value = last.g; $('selC').value = last.c; }
+  $('selG').onchange = $('selC').onchange = function () { store('labBoardCls', { g: +$('selG').value, c: +$('selC').value }); ana = false; poll(); };
+  $('stuUrl').textContent = location.href.replace(/board\.html.*$/, '');
+  if (PIN) login(PIN);
+
+  function login(p) {
+    PIN = p || $('pinIn').value.trim();
+    apiPost({ api: 'pincheck', pin: PIN, g: 3, c: 1 }).then(function () {
+      store('labPin', PIN); $('v-pin').classList.add('hidden'); $('v-main').classList.remove('hidden'); poll();
+    }).catch(function (e) { store('labPin', ''); $('v-pin').classList.remove('hidden'); toast(e.message); });
+  }
+  function G() { return +$('selG').value; } function C() { return +$('selC').value; }
+
+  function start(exp) {
+    if (data && data.state && data.state.open && Object.keys(data.groups || {}).length && !confirm('지금 실험 기록을 접고 새 실험을 시작할까요? (기록 시트에는 남아 있어요)')) return;
+    apiPost({ api: 'labstart', pin: PIN, g: G(), c: C(), exp: exp }).then(function (d) { ana = false; inv = false; data = d; render(); toast(C() + '반 학생 화면에 측정표가 열렸어요'); }).catch(function (e) { toast(e.message); });
+  }
+  function setOpen(o) { apiPost({ api: o ? 'labopen' : 'labclose', pin: PIN, g: G(), c: C() }).then(function (d) { data = d; render(); }).catch(function (e) { toast(e.message); }); }
+
+  function poll() {
+    clearTimeout(timer);
+    apiGet({ api: 'labdata', grade: G(), klass: C() }).then(function (d) { data = d; render(); $('live').textContent = '● 실시간 ' + new Date().toLocaleTimeString('ko-KR'); $('live').style.color = '#4ade80'; })
+      .catch(function () { $('live').textContent = '● 연결 끊김'; $('live').style.color = '#ff6b6b'; })
+      .finally(function () { timer = setTimeout(poll, 3000); });
+  }
+  function toggleInv() { inv = !inv; render(); }
+  function toggleAna() { ana = !ana; render(); }
+
+  function series(e) {
+    var gs = data.groups || {};
+    return Object.keys(gs).sort(function (a, b) { return a - b; }).map(function (k) {
+      var pts = gs[k].pts.map(function (p) {
+        if (e.id === 'balloon') return [p[0], +(p[1] - p[0]).toFixed(3)];
+        return inv ? [+(1 / p[0]).toFixed(4), p[1]] : p;
+      });
+      return { grp: +k, color: COLORS[(k - 1) % 10], label: k + '모둠 · ' + gs[k].nm, pts: pts, raw: gs[k].pts };
+    });
+  }
+
+  function render() {
+    var s = data && data.state, e = s && EXP[s.exp];
+    $('bClose').classList.toggle('hidden', !(s && s.open)); $('bOpen').classList.toggle('hidden', !(s && !s.open));
+    if (!e) { $('eStd').textContent = '실험 대기 중'; $('eName').textContent = '위에서 실험을 시작하세요'; $('chart').innerHTML = ''; $('groups').innerHTML = ''; $('res').classList.add('hidden'); $('uniCard').classList.add('hidden'); return; }
+    $('eStd').textContent = e.std + (s.open ? ' · 입력 받는 중' : ' · 마감');
+    $('eName').textContent = e.icon + ' ' + e.name + ' — ' + G() + '학년 ' + C() + '반';
+    $('bInv').classList.toggle('hidden', e.id !== 'parallax');
+    $('bInv').textContent = inv ? '🔁 가로축을 거리로' : '🔁 가로축을 1/거리로';
+    $('bAna').textContent = ana ? '🙈 규칙 숨기기' : '💡 규칙 공개';
+    $('uniCard').classList.toggle('hidden', e.id !== 'balloon');
+
+    var ser = series(e), all = [];
+    ser.forEach(function (x) { all = all.concat(x.pts); });
+    var opt = { h: 380, xl: e.id === 'balloon' ? '처음 거리 (cm)' : (inv ? '1 / 거리 (1/cm)' : '눈 ~ 연필 거리 (cm)'), yl: e.id === 'balloon' ? '늘어난 거리 (cm)' : '움직인 거리 (cm)' };
+    var k = slope0(all), K = 0;
+    if (e.id === 'parallax') { K = slope0(all.map(function (p) { return inv ? p : [1 / p[0], p[1]]; })); }
+    if (ana && all.length >= 2) {
+      if (e.id === 'balloon' || inv) opt.line = { k: e.id === 'balloon' ? k : K };
+      else opt.curve = { K: K };
+    }
+    scatter($('chart'), ser, opt);
+
+    // 모둠 목록
+    var gl = $('groups'); gl.innerHTML = '';
+    $('cnt').textContent = '(' + ser.length + '모둠 도착)';
+    if (!ser.length) gl.innerHTML = '<p class="waiting">아직 도착한 측정값이 없어요… 📡</p>';
+    ser.forEach(function (x) {
+      var v = '';
+      if (ana && e.id === 'balloon') v = '비율 ' + fmt(slope0(x.pts), 2);
+      if (ana && e.id === 'parallax') v = '거리×움직임 ≈ ' + fmt(x.raw.reduce(function (a, p) { return a + p[0] * p[1]; }, 0) / x.raw.length, 0);
+      gl.insertAdjacentHTML('beforeend', '<div class="grp"><span class="dot" style="background:' + x.color + '"></span><span class="nm">' + esc(x.label) + '</span><span class="v">' + v + '</span></div>');
+    });
+
+    // 규칙
+    var r = $('res');
+    if (!ana || all.length < 2) { r.classList.add('hidden'); $('ana').textContent = ana ? '측정값이 두 개 이상 모이면 규칙을 보여 줘요.' : '학생들이 먼저 규칙을 예상한 뒤 💡 규칙 공개를 눌러요.'; return; }
+    r.classList.remove('hidden');
+    if (e.id === 'balloon') {
+      $('resLabel').textContent = '우리 반 풍선 우주 팽창 비율 (늘어난 거리 ÷ 처음 거리)';
+      $('resVal').textContent = fmt(k, 2);
+      $('resSub').innerHTML = '처음 거리가 2배인 은하는 약 2배 더 멀어졌어요 → <b>멀리 있는 은하일수록 빨리 멀어진다</b> (허블 법칙)';
+      $('ana').textContent = '점들이 원점을 지나는 직선 근처에 모이나요? 직선이면 우주가 모든 곳에서 고르게 팽창한다는 뜻!';
+    } else {
+      $('resLabel').textContent = '거리 × 움직인 거리 (우리 반 평균, 거의 일정!)';
+      $('resVal').textContent = fmt(K, 0);
+      $('resSub').innerHTML = '거리가 2배 → 움직임은 <b>1/2</b> · 시차는 거리에 <b>반비례</b> → 연주 시차가 작을수록 먼 별';
+      $('ana').textContent = inv ? '가로축을 1/거리로 바꾸면 점들이 직선에 모여요 = 반비례!' : '곡선(반비례)을 따라 점들이 놓여요. 🔁 단추로 1/거리 그래프도 보세요.';
+    }
+  }
+
+  function csv() {
+    if (!data || !data.state) return toast('실험이 없어요');
+    var lines = ['모둠,입력자,순서,x,y'], gs = data.groups || {};
+    Object.keys(gs).forEach(function (k) { gs[k].pts.forEach(function (p, i) { lines.push([k, gs[k].nm, i + 1, p[0], p[1]].join(',')); }); });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], { type: 'text/csv' }));
+    a.download = G() + '학년' + C() + '반_' + data.state.exp + '.csv'; a.click();
+  }
+
+  /* ---------- 기준 은하 바꾸기 애니메이션 ---------- */
+  var GAL = [[0, 0], [1.2, .4], [-.9, .8], [.5, -1.1], [-1.4, -.6], [2, -.2], [-.3, 1.6], [1.5, 1.3], [-1.9, .9]], ref = 0, scale = 1, anim = null;
+  var cv = $('uni');
+  function uniDraw() {
+    var W = cv.width = cv.clientWidth * devicePixelRatio, H = cv.height = cv.clientHeight * devicePixelRatio, ctx = cv.getContext('2d');
+    var u = Math.min(W, H) / 5.2, cx = W / 2, cy = H / 2, r0 = GAL[ref];
+    ctx.clearRect(0, 0, W, H);
+    GAL.forEach(function (g, i) {
+      var x = cx + (g[0] - r0[0]) * u * scale, y = cy + (g[1] - r0[1]) * u * scale;
+      if (i !== ref) { // 화살표: 기준에서 본 이동
+        var x1 = cx + (g[0] - r0[0]) * u, y1 = cy + (g[1] - r0[1]) * u;
+        ctx.strokeStyle = 'rgba(255,209,102,.8)'; ctx.lineWidth = 2 * devicePixelRatio; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x, y); ctx.stroke();
+      }
+      ctx.fillStyle = i === ref ? '#ffd166' : '#7cc4ff';
+      ctx.beginPath(); ctx.arc(x, y, (i === ref ? 11 : 8) * devicePixelRatio, 0, 7); ctx.fill();
+      ctx.fillStyle = '#eef2ff'; ctx.font = (13 * devicePixelRatio) + 'px sans-serif';
+      ctx.fillText(i === ref ? '★ 우리 은하(기준)' : '은하 ' + String.fromCharCode(65 + i), x + 12 * devicePixelRatio, y - 10 * devicePixelRatio);
+    });
+  }
+  function uniPlay() {
+    cancelAnimationFrame(anim); scale = 1; var t0 = performance.now();
+    (function step(t) { scale = 1 + Math.min(1, (t - t0) / 2500) * .6; uniDraw(); if (scale < 1.6) anim = requestAnimationFrame(step); })(t0);
+    $('uniMsg').textContent = '기준에서 멀수록 화살표가 길어요. 다른 은하를 눌러 기준을 바꿔 보세요!';
+  }
+  cv.addEventListener('click', function (ev) {
+    var b = cv.getBoundingClientRect(), W = b.width, H = b.height, u = Math.min(W, H) / 5.2, r0 = GAL[ref], best = -1, bd = 1e9;
+    GAL.forEach(function (g, i) { var x = W / 2 + (g[0] - r0[0]) * u * scale, y = H / 2 + (g[1] - r0[1]) * u * scale, d = Math.hypot(x - (ev.clientX - b.left), y - (ev.clientY - b.top)); if (d < bd) { bd = d; best = i; } });
+    if (bd < 30) { ref = best; uniPlay(); $('uniMsg').textContent = '은하 ' + (ref ? String.fromCharCode(65 + ref) : '(우리 은하)') + '에서 봐도 → 모든 은하가 멀어지고, 멀수록 빨리! 중심은 따로 없어요.'; }
+  });
+  new ResizeObserver(function () { if (!$('uniCard').classList.contains('hidden')) uniDraw(); }).observe(cv);
+</script>
+</body>
+</html>

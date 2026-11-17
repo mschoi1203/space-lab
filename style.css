@@ -1,0 +1,66 @@
+/* 스타 레인저 우주 실험실 — 깊은 우주 + 유리 패널 */
+:root {
+  --bg: #070b1a; --bg2: #0e1630; --panel: rgba(255,255,255,.06); --panel2: rgba(255,255,255,.1);
+  --line: rgba(255,255,255,.14); --ink: #eef2ff; --dim: #9aa6c7; --acc: #7cc4ff; --acc2: #ffd166;
+  --ok: #4ade80; --no: #ff6b6b; --or: #f4731c; --gr: #00a363; --bl: #1a64b7;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  font-family: 'Pretendard Variable', Pretendard, 'Malgun Gothic', sans-serif; color: var(--ink); line-height: 1.55; word-break: keep-all;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(124,196,255,.18), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(244,115,28,.14), transparent 60%),
+    linear-gradient(180deg, var(--bg2), var(--bg));
+  background-attachment: fixed;
+}
+body::before { /* 반짝이는 별 */
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: .7;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, #fff, transparent), radial-gradient(1px 1px at 30% 80%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 55% 35%, #fff, transparent), radial-gradient(1px 1px at 75% 15%, #fff, transparent),
+    radial-gradient(1px 1px at 88% 62%, #fff, transparent), radial-gradient(1.5px 1.5px at 18% 55%, #cfe6ff, transparent),
+    radial-gradient(1px 1px at 42% 8%, #fff, transparent), radial-gradient(1px 1px at 66% 90%, #ffe9c2, transparent);
+  animation: twinkle 4s ease-in-out infinite alternate;
+}
+@keyframes twinkle { from { opacity: .45; } to { opacity: .9; } }
+button, input, select { font: inherit; }
+.hidden { display: none !important; }
+.wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 16px; }
+header.bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 16px; position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; }
+.brand { display: flex; align-items: center; gap: 10px; flex: 1 1 260px; }
+.brand .ico { font-size: 30px; filter: drop-shadow(0 0 10px rgba(124,196,255,.6)); }
+.brand b { display: block; font-size: 1.2rem; font-weight: 900; letter-spacing: -.3px; }
+.brand small { color: var(--dim); }
+.chip { background: var(--panel2); border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px; font-weight: 800; font-size: .88rem; white-space: nowrap; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 20px; backdrop-filter: blur(6px); margin-top: 14px; }
+.card h2 { margin: 0 0 6px; font-size: 1.3rem; font-weight: 900; letter-spacing: -.3px; }
+.card h3 { margin: 0 0 8px; font-size: 1.02rem; font-weight: 800; }
+.lead { color: var(--dim); margin: 0 0 10px; }
+label { display: block; font-weight: 700; margin: 12px 0 6px; font-size: .92rem; color: #dbe3ff; }
+input, select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: rgba(0,0,0,.25); color: var(--ink); }
+input:focus, select:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px rgba(124,196,255,.2); }
+select option { color: #111; }
+.row { display: grid; gap: 10px; grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 600px) { .row { grid-template-columns: 1fr 1fr; } }
+.btn { border: 0; border-radius: 12px; padding: 11px 18px; font-weight: 800; cursor: pointer; color: #061021; background: var(--acc);
+  box-shadow: 0 4px 0 #3c7fb5, 0 0 18px rgba(124,196,255,.35); transition: transform .1s, box-shadow .1s; }
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 #3c7fb5; }
+.btn.gold { background: var(--acc2); box-shadow: 0 4px 0 #b98f2c, 0 0 18px rgba(255,209,102,.35); }
+.btn.ghost { background: var(--panel2); color: var(--ink); box-shadow: 0 3px 0 rgba(0,0,0,.35); border: 1px solid var(--line); }
+.btn.red { background: var(--no); color: #fff; box-shadow: 0 4px 0 #a33; }
+.btn.sm { padding: 6px 12px; font-size: .86rem; }
+.btn:disabled { opacity: .45; cursor: default; box-shadow: none; }
+.wide { width: 100%; margin-top: 16px; padding: 13px; font-size: 1.05rem; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #111a36; border: 1px solid var(--line); color: #fff; padding: 10px 20px; border-radius: 999px; font-weight: 700; z-index: 50; max-width: 92vw; }
+table.data { width: 100%; border-collapse: collapse; margin-top: 8px; }
+table.data th, table.data td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: center; }
+table.data th { color: var(--dim); font-weight: 700; font-size: .85rem; }
+table.data input { text-align: center; padding: 8px 6px; }
+.tag { display: inline-block; border-radius: 99px; padding: 1px 10px; font-size: .78rem; font-weight: 800; background: rgba(124,196,255,.18); color: var(--acc); }
+.msg { min-height: 1.4em; margin: 8px 0 0; font-weight: 700; }
+.msg.ok { color: var(--ok); } .msg.no { color: var(--no); }
+.big-wait { text-align: center; padding: 26px 0; }
+.big-wait .rocket { font-size: 64px; display: inline-block; animation: float 2.6s ease-in-out infinite; }
+@keyframes float { 0%,100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(-12px) rotate(8deg); } }
+svg text { fill: var(--dim); font-size: 12px; }
